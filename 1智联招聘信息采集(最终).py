@@ -4,19 +4,16 @@ import re
 from bloomfilter import Bloomfilter
 import os
 
-repeat_count = 0
 # 汉字编码  gbk gb18030 gb2312
 keywords = ['python', 'html', 'php', 'java']
-
 if os.path.exists("state.txt"):
     print("文件存在直接加载状态")
     bloom = Bloomfilter("state.txt")
 else:
     print("文件不存在设置大小为1000000")
     bloom = Bloomfilter(1000000)
-
 for keyword in keywords:
-    f = open(f"{keyword}.csv", "w", encoding="gbk")
+    f = open(f"{keyword}.csv", "a", encoding="gbk")
     url = f"https://search.51job.com/list/000000,000000,0000,00,9,99,{keyword},2,1.html?lang=c&stype=&postchannel=0000&workyear=99&cotype=99&degreefrom=99&jobterm=99&companysize=99&providesalary=99&lonlat=0%2C0&radius=-1&ord_field=0&confirmdate=9&fromType=&dibiaoid=0&address=&line=&specialarea=00&from=&welfare="
     content = requests.get(url)
     content.encoding = content.apparent_encoding
@@ -33,25 +30,14 @@ for keyword in keywords:
         content = content.text
         root = etree.HTML(content)
         job_infos = root.xpath("//div[@class='dw_table']/div[@class='el']")
-
-        if repeat_count >= 10:
-            print("后面的数据都采集过了，不用再看了")
-            break
-
         for job_info in job_infos:
             job_href = job_info.xpath("p[contains(@class,'t1')]/span/a/@href")[0]
-
             if bloom.test(job_href):
                 print("数据存在", job_href)
-                repeat_count += 1
-                if repeat_count >= 10:
-                    print("后面的数据都采集过了，不用再看了")
-                    break
             else:
                 print("数据不存在！", job_href)
                 bloom.add(job_href)
                 bloom.save("state.txt")
-
                 job_name = job_info.xpath("p[contains(@class,'t1')]/span/a/@title")
                 job_name = job_name[0]
                 company = job_info.xpath("span[@class='t2']/a/@title")
@@ -91,4 +77,5 @@ for keyword in keywords:
                 info = [job_name, company, place, salary, min_salary, max_salary, publish]
                 f.write('"' + '","'.join(info) + '"' + "\n")
                 f.flush()
+    repeat_count = 0
     f.close()
